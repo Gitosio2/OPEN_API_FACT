@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: API Gestión de Facturas
+  version: 1.0.0
+  description: API REST para crear y gestionar facturas con numeración correlativa.
+
+tags:
+  - name: Facturas
+
+paths:
+  /facturas:
+    get:
+      summary: Lista todas las facturas
+      tags: [Facturas]
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            $ref: '#/components/schemas/EstadoFactura'
+          description: Filtra por estado
+      responses:
+        '200':
+          description: Lista de facturas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Factura'
+
+    post:
+      summary: Crea una factura en estado borrador
+      tags: [Facturas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacturaInput'
+      responses:
+        '201':
+          description: Factura creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /facturas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Obtiene el detalle de una factura
+      tags: [Facturas]
+      responses:
+        '200':
+          description: Factura encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Actualiza una factura en estado borrador
+      tags: [Facturas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacturaInput'
+      responses:
+        '200':
+          description: Factura actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      summary: Elimina una factura (solo borradores)
+      tags: [Facturas]
+      responses:
+        '204':
+          description: Factura eliminada
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /facturas/{id}/confirmar:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    patch:
+      summary: Confirma una factura y asigna número correlativo
+      tags: [Facturas]
+      responses:
+        '200':
+          description: Factura confirmada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Factura'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  schemas:
+    EstadoFactura:
+      type: string
+      enum: [borrador, definitivo]
+
+    FacturaInput:
+      type: object
+      required:
+        - cif
+        - denominacionSocial
+        - direccionFiscal
+        - baseImponible
+        - iva
+      properties:
+        cif:
+          type: string
+          example: B12345678
+        denominacionSocial:
+          type: string
+          example: Empresa Ejemplo S.L.
+        direccionFiscal:
+          type: string
+          example: Calle Mayor 1, 28001 Madrid
+        baseImponible:
+          type: number
+          format: double
+          example: 1000.00
+        iva:
+          type: number
+          format: double
+          example: 210.00
+
+    Factura:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        numero:
+          type: string
+          nullable: true
+          example: BT0001
+        cif:
+          type: string
+          example: B12345678
+        denominacionSocial:
+          type: string
+          example: Empresa Ejemplo S.L.
+        direccionFiscal:
+          type: string
+          example: Calle Mayor 1, 28001 Madrid
+        baseImponible:
+          type: number
+          format: double
+          example: 1000.00
+        iva:
+          type: number
+          format: double
+          example: 210.00
+        total:
+          type: number
+          format: double
+          example: 1210.00
+        estado:
+          $ref: '#/components/schemas/EstadoFactura'
+        creadoEn:
+          type: string
+          format: date-time
+        actualizadoEn:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        codigo:
+          type: string
+        mensaje:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Datos de entrada inválidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: BAD_REQUEST
+            mensaje: Los datos enviados no son válidos
+
+    NotFound:
+      description: Factura no encontrada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: NOT_FOUND
+            mensaje: La factura no existe
+
+    Conflict:
+      description: Operación no permitida por el estado actual de la factura
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: CONFLICT
+            mensaje: La operación no está permitida en el estado actual
